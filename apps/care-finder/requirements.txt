@@ -1,0 +1,2 @@
+flask>=3.0,<4
+databricks-sdk>=0.169,<1

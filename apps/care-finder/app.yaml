@@ -1,0 +1,12 @@
+# Care Finder app configuration (CMU Fall 2026 Datathon).
+command:
+  - python
+  - app.py
+env:
+  - name: CARE_FINDER_WAREHOUSE_ID
+    value: d5e4c683c7185a7c
+    # "Serverless Starter Warehouse" — used for all SQL statement execution.
+  - name: CARE_FINDER_REVIEWERS
+    value: skarani@andrew.cmu.edu
+    # Workspace users allowed to record external evidence via the review form.
+    # Comma-separated list of workspace user emails.

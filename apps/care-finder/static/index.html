@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Care Finder — health services near an Indian PIN code</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#ranked-section">Skip to results</a>
+<header class="app-header">
+  <h1>Care Finder</h1>
+  <p class="tagline">Find a facility near a six-digit Indian PIN code — and see the evidence behind every
+    result. Community health worker tool · CMU Fall 2026 Datathon · facility data from the Virtue
+    Foundation dataset, PIN data from the India Post directory.</p>
+</header>
+
+<section class="search-panel" aria-labelledby="find-heading">
+  <h2 id="find-heading">Find a facility</h2>
+  <form id="search-form" class="search-form">
+    <div class="sf sf-service">
+      <label for="service-search">Service</label>
+      <div class="service-picker">
+        <input id="service-search" type="text" role="combobox" aria-expanded="false"
+               aria-controls="service-list" aria-autocomplete="list"
+               placeholder="Search for a service" autocomplete="off">
+        <input id="service" type="hidden" value="">
+        <ul id="service-list" class="service-list hidden" role="listbox" aria-label="Service catalog"></ul>
+      </div>
+      <p class="sf-examples">Try:
+        <button type="button" class="linklike" data-service="dialysis">Dialysis</button>,
+        <button type="button" class="linklike" data-service="mri">MRI</button>,
+        <button type="button" class="linklike" data-service="nicu">NICU</button>
+      </p>
+      <p class="field-error" id="service-error" aria-live="polite"></p>
+    </div>
+    <div class="sf sf-pin">
+      <label for="pin">6-digit PIN code</label>
+      <input id="pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+             placeholder="e.g. 700053" autocomplete="off">
+      <p class="sf-examples">Try:
+        <button type="button" class="linklike" data-pin="700053">700053</button>,
+        <button type="button" class="linklike" data-pin="641011">641011</button>,
+        <button type="button" class="linklike" data-pin="461001">461001</button>,
+        <button type="button" class="linklike" data-pin="744101">744101</button>
+      </p>
+      <p class="field-error" id="pin-error" aria-live="polite"></p>
+      <div id="pin-districts" class="district-options hidden"></div>
+    </div>
+    <div class="sf sf-radius">
+      <label for="radius">Radius (km)</label>
+      <input id="radius" type="number" value="50" min="1" max="200">
+    </div>
+    <button id="find" class="primary" type="submit">Find facilities</button>
+  </form>
+</section>
+
+<section id="status" class="status hidden" role="status" aria-live="polite"></section>
+
+<main class="layout">
+  <div id="results">
+    <a id="view-map" class="view-map hidden" href="#map">View map</a>
+    <section id="ranked-section" class="hidden">
+      <div class="results-head">
+        <h2>Nearby facilities</h2>
+        <p id="results-summary" class="results-summary"></p>
+      </div>
+      <div id="ranked" class="cards"></div>
+    </section>
+    <section id="no-eligible" class="state-card hidden">
+      <h2>No nearby facilities had enough evidence for this service.</h2>
+      <p>We did not find a facility within the radius with a clear, conflict-free record of this service
+        and a usable location. This does <strong>not</strong> mean no facility offers it — check the leads
+        below and confirm locally.</p>
+      <div class="state-actions">
+        <button id="change-service" class="secondary" type="button">Change service</button>
+        <button id="change-pin" class="secondary" type="button">Change PIN</button>
+      </div>
+    </section>
+    <section id="leads-section" class="hidden">
+      <h2>Leads to check</h2>
+      <p class="section-note">Weaker matches: the service appears in a list or equipment field, without a
+        clear statement that this branch provides it. Confirm with the facility before referring a
+        patient.</p>
+      <div id="leads" class="cards"></div>
+    </section>
+    <section id="withheld-section" class="hidden">
+      <h2>Needs review</h2>
+      <p class="section-note">These facilities match the service text but have unresolved branch, location,
+        or service conflicts, so they are kept out of the ranking until reviewed.</p>
+      <div id="withheld" class="cards muted"></div>
+    </section>
+  </div>
+  <div class="map-col">
+    <div id="map" role="region" aria-label="Map of results near the PIN"></div>
+    <p id="map-note" class="map-note"></p>
+  </div>
+</main>
+
+<section class="review">
+  <h2>Review queue <span id="queue-count" class="pill"></span></h2>
+  <p class="section-note" id="reviewer-note">Loading…</p>
+  <div id="queue-list" class="queue-grid"></div>
+
+  <h3>Record evidence from a source you actually reviewed</h3>
+  <p class="section-note">Every row must trace to a real source review: the exact quote, the URL, and the date
+    you checked it. URLs already cited by Virtue Foundation substantiate a claim but do not count as
+    independent corroboration (the app detects this automatically).</p>
+  <form id="evidence-form" class="evidence-form">
+    <div class="field">
+      <label for="e-uid">Facility</label>
+      <select id="e-uid"></select>
+    </div>
+    <div class="field">
+      <label for="e-claim">Claim type</label>
+      <select id="e-claim">
+        <option value="service_availability">Service availability at this branch</option>
+        <option value="branch_identity">Branch identity / location</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="e-kind">Source kind</label>
+      <select id="e-kind">
+        <option value="official_website">Official branch website</option>
+        <option value="government_empanelment">Government empanelment list</option>
+        <option value="other_identifiable">Other identifiable source</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="e-url">Source URL</label>
+      <input id="e-url" type="url" placeholder="https://…" required>
+    </div>
+    <div class="field">
+      <label for="e-date">Date checked</label>
+      <input id="e-date" type="date" required>
+    </div>
+    <div class="field">
+      <label for="e-outcome">Outcome</label>
+      <select id="e-outcome">
+        <option value="supports">Supports</option>
+        <option value="conflicts">Conflicts</option>
+        <option value="inconclusive">Inconclusive</option>
+      </select>
+    </div>
+    <div class="field wide">
+      <label for="e-quote">Exact quote from the source</label>
+      <textarea id="e-quote" rows="3" required></textarea>
+    </div>
+    <div class="field wide">
+      <label for="e-notes">Notes (optional)</label>
+      <input id="e-notes" type="text">
+    </div>
+    <button type="submit" class="primary">Record evidence</button>
+  </form>
+  <p id="form-result" class="form-result"></p>
+</section>
+
+<dialog id="evidence-modal">
+  <div class="modal-body">
+    <button class="close" id="modal-close" aria-label="Close">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</dialog>
+
+<footer>
+  Care Finder · CMU Fall 2026 Datathon. Facility data: Virtue Foundation dataset (Databricks Marketplace,
+  read-only). PIN data: India Post PIN directory. Distances are straight-line estimates from an approximate
+  PIN origin (post-office centroid). Evidence scores summarize documented evidence only — lack of evidence
+  is not evidence that a facility does not offer a service.
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/js/map.js"></script>
+<script src="/js/ui.js"></script>
+</body>
+</html>
